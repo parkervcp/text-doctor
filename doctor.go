@@ -24,16 +24,17 @@ var (
 
 type docConfig struct {
 	Sheet struct {
-		SheetID              string `json:"sheet_id"`
-		SheetTable           string `json:"sheet_table"`
-		SheetCellsStart      string `json:"sheet_cells_start"`
-		SheetCellEnd         string `json:"sheet_cell_end"`
-		SheetColumns         []int  `json:"sheet_columns"`
-		SheetRefreshInterval int    `json:"sheet_refresh_interval"`
+		ID              string `json:"id"`
+		Table           string `json:"table"`
+		CellsStart      string `json:"cells_start"`
+		CellEnd         string `json:"cell_end"`
+		Columns         []int  `json:"columns"`
+		RefreshInterval int    `json:"refresh_interval"`
 	} `json:"sheet"`
 	File struct {
-		FileLocation       string `json:"file_location"`
-		FileUpdateInterval int    `json:"file_update_interval"`
+		Location       string `json:"location"`
+		UpdateInterval int    `json:"update_interval"`
+		Format         string `json:"format"`
 	} `json:"file"`
 }
 
@@ -97,7 +98,7 @@ func saveToken(path string, token *oauth2.Token) {
 }
 
 func writeFile() {
-	fo, err := os.Create(DocConfig.File.FileLocation)
+	fo, err := os.Create(DocConfig.File.Location)
 	if err != nil {
 		log.Fatalf("Could not write to file")
 	}
@@ -132,35 +133,45 @@ func main() {
 		// Gets the spreadsheet information
 		// https://docs.google.com/spreadsheets/d/1BxiMVs0XRA5nFMdKvBdBZjgmUUqptlbs74OgvE2upms/edit
 		log.Printf("Getting info from spreadsheet")
-		readRange := DocConfig.Sheet.SheetTable + "!" + DocConfig.Sheet.SheetCellsStart + ":" + DocConfig.Sheet.SheetCellEnd
-		resp, err := srv.Spreadsheets.Values.Get(DocConfig.Sheet.SheetID, readRange).Do()
+		readRange := DocConfig.Sheet.Table + "!" + DocConfig.Sheet.CellsStart + ":" + DocConfig.Sheet.CellEnd
+		resp, err := srv.Spreadsheets.Values.Get(DocConfig.Sheet.ID, readRange).Do()
 		if err != nil {
 			log.Fatalf("Unable to retrieve data from sheet: %v", err)
 		}
 
 		// write data to a map
 		rows := make(map[int][]string)
-		var columns []string
+
+		log.Println(resp.Values)
+
+		log.Println(resp.Range)
 
 		for ID, row := range resp.Values {
-			for _, column := range DocConfig.Sheet.SheetColumns {
+			// resets the value of columns every loop.
+			var columns []string
+			// add all the comlumn data to a string array
+			for _, column := range DocConfig.Sheet.Columns {
 				columns = append(columns, row[column].(string))
 			}
+			// write string array to map under ID for the
 			rows[ID] = columns
 		}
+
+		log.Println(rows)
 
 		//compare stored data with the new data and update if needed.
 		if !reflect.DeepEqual(rows, currentFile.Responses) {
 			log.Printf("Change in the spreadsheet. Updating the file.")
 			currentFile.Responses = rows
+			writeFile()
 		} else {
 			log.Printf("Spreadsheet has not updated.")
 		}
 
-		log.Printf("Sleeping %v seconds.", DocConfig.Sheet.SheetRefreshInterval)
+		log.Printf("Sleeping %v seconds.", DocConfig.Sheet.RefreshInterval)
 
 		// sleep for a minimum of 60 seconds before querying the API again
-		time.Sleep(time.Duration(DocConfig.Sheet.SheetRefreshInterval) * time.Second)
+		time.Sleep(time.Duration(DocConfig.Sheet.RefreshInterval) * time.Second)
 	}
 }
 
@@ -181,19 +192,19 @@ func init() {
 
 	json.Unmarshal(byteValue, &DocConfig)
 
-	if DocConfig.Sheet.SheetID == "" {
+	if DocConfig.Sheet.ID == "" {
 		log.Fatalf("No Sheet ID in the config.")
 	}
 
-	if DocConfig.Sheet.SheetCellsStart == "" || DocConfig.Sheet.SheetCellEnd == "" {
+	if DocConfig.Sheet.CellsStart == "" || DocConfig.Sheet.CellEnd == "" {
 		log.Fatalf("A starting and ending cell is required.")
 	}
 
-	if len(DocConfig.Sheet.SheetColumns) < 1 {
+	if len(DocConfig.Sheet.Columns) < 1 {
 		log.Fatalf("At least one column must be set for values")
 	}
 
-	if DocConfig.Sheet.SheetRefreshInterval < 60 {
-		DocConfig.Sheet.SheetRefreshInterval = 60
+	if DocConfig.Sheet.RefreshInterval < 60 {
+		DocConfig.Sheet.RefreshInterval = 60
 	}
 }

@@ -1,15 +1,16 @@
 {
 	"sheet": {
-        "sheet_id": "",
-        "sheet_table":"",
-        "sheet_cells_start": "",
-        "sheet_cell_end": "",
-		"sheet_columns": [
+        "id": "",
+        "table":"",
+        "cells_start": "",
+        "cell_end": "",
+		"columns": [
 		],
-		"sheet_refresh_interval": 60
+		"refresh_interval": 60
 	},
 	"file": {
-		"file_location": "c:/stream/overlay.txt",
-		"file_update_interval": 20
+		"location": "c:/stream/overlay.txt",
+		"update_interval": 20,
+		"format":"&0& &1& &2&"
 	}
 }
