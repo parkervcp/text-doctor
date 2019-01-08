@@ -8,6 +8,8 @@ import (
 	"net/http"
 	"os"
 	"reflect"
+	"strconv"
+	"strings"
 	"time"
 
 	"golang.org/x/net/context"
@@ -97,14 +99,14 @@ func saveToken(path string, token *oauth2.Token) {
 	json.NewEncoder(f).Encode(token)
 }
 
-func writeFile() {
+func writeFile(line string) {
 	fo, err := os.Create(DocConfig.File.Location)
 	if err != nil {
 		log.Fatalf("Could not write to file")
 	}
 	defer fo.Close()
 
-	fo.WriteString("")
+	fo.WriteString(line)
 
 	fo.Close()
 }
@@ -142,10 +144,6 @@ func main() {
 		// write data to a map
 		rows := make(map[int][]string)
 
-		log.Println(resp.Values)
-
-		log.Println(resp.Range)
-
 		for ID, row := range resp.Values {
 			// resets the value of columns every loop.
 			var columns []string
@@ -157,13 +155,23 @@ func main() {
 			rows[ID] = columns
 		}
 
-		log.Println(rows)
-
 		//compare stored data with the new data and update if needed.
 		if !reflect.DeepEqual(rows, currentFile.Responses) {
+			var lines []string
+
 			log.Printf("Change in the spreadsheet. Updating the file.")
 			currentFile.Responses = rows
-			writeFile()
+
+			// writing all the things to a string to make lines pretty and format them.
+			for _, row := range rows {
+				format := DocConfig.File.Format
+				for _, column := range DocConfig.Sheet.Columns {
+					format = strings.Replace(format, "&"+strconv.Itoa(column)+"&", row[column], 1)
+				}
+				lines = append(lines, format)
+			}
+
+			writeFile(strings.Join(lines, ""))
 		} else {
 			log.Printf("Spreadsheet has not updated.")
 		}
